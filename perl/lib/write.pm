@@ -8,42 +8,47 @@ use File::Path;
 use File::Basename;
 
 sub handler {
-    my $r = shift;
+  my $r = shift;
 
-    if ($r->has_request_body(\&post)) {
-        return OK;
-    }
+  if ($r->has_request_body(\&post)) {
+      return OK;
+  }
 
-    $r->send_http_header("application/json");
+  $r->send_http_header("application/json");
 
-    return OK;
+  return HTTP_BAD_REQUEST;
 }
 
 sub post {
-    my $r = shift;
-    my $json = $r->request_body;
-    my $encoded_data = decode_json($json);
-    my $filename = $encoded_data->{request}->{uri};
-    my $data = $encoded_data->{response}->{body};
-    my $dir = dirname($filename);
+  my $r = shift;
+  my $encoded_data = decode_json($r->request_body);
 
-    $r->send_http_header("application/json");
+  my $method = defined $encoded_data->{request}->{method} ? $encoded_data->{request}->{method} : "GET" ;
 
-    if ( !-d $dir ) {
-       mkpath('/tmp/'.$dir);
-    }
+  my $status_code = $encoded_data->{request}->{status_code};
+  my $filename = $encoded_data->{request}->{uri};
+  my $data = $encoded_data->{response}->{body};
+  my $dir = dirname($filename);
 
-    unless(open FILE, '>/tmp/'.$filename.'.json') {
-       die "Unable to create $filename";
-    }
+  $r->send_http_header("application/json");
 
-    print FILE encode_json $data;
+  if ( !-d $dir ) {
+     mkpath('/tmp/'.$dir);
+  }
 
-    close FILE;
+  unless(open FILE, ">/tmp/".$filename."_".$method.".json") {
+     die "Unable to create $filename";
+  }
 
-    $r->print('{"success":true}');
+  print FILE "status: ".$status_code."\n" if $status_code;
 
-    return OK;
+  print FILE encode_json $data;
+
+  close FILE;
+
+  $r->print('{"success":true}');
+
+  return OK;
 }
 
 1;
