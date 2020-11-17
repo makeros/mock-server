@@ -2,25 +2,37 @@ package read;
 
 use nginx;
 use strict;
-use warnings; 
+use warnings;
 
 sub handler {
-    my $r = shift;
+  my $r = shift;
 
-    $r->send_http_header("application/json");
-    return OK if $r->header_only;
+  return OK if $r->header_only;
 
-    unless(open FILE, '/tmp/'.$r->uri.'.json') {
-        die "File not exists ".$r->uri;
+  my $response_body = "";
+
+  unless(open FILE, "/tmp/".$r->uri."_".$r->request_method.".json") {
+    die "File not exists ".$r->uri;
+  }
+
+  while(my $line = <FILE>) {
+    $line =~ m/status:\s(\d+)/;
+    my $status_code = $1;
+
+    if ($status_code) {
+      $r->status($status_code);
+    } else {
+      $response_body = $response_body.$line
     }
 
-    while(my $line = <FILE>) {
-       $r->print($line);
-    }
+  }
 
-    close FILE;
+  $r->send_http_header("application/json");
+  $r->print($response_body);
 
-    return OK;
+  close FILE;
+
+  return OK;
 }
 
 1;
